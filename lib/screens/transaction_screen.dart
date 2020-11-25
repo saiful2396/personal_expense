@@ -8,13 +8,27 @@ import '../widgets/transaction_list.dart';
 import '../widgets/new_transaction.dart';
 import '../widgets/chart.dart';
 
-
 class TransactionScreen extends StatefulWidget {
   @override
   _TransactionScreenState createState() => _TransactionScreenState();
 }
 
-class _TransactionScreenState extends State<TransactionScreen> {
+class _TransactionScreenState extends State<TransactionScreen> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    WidgetsBinding.instance.addObserver(this);
+    super.initState();
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    print(state);
+    super.didChangeAppLifecycleState(state);
+  }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
   final List<Transaction> _userTransactions = [
     Transaction(
       id: 't1',
@@ -35,11 +49,11 @@ class _TransactionScreenState extends State<TransactionScreen> {
     return _userTransactions
         .where(
           (e) => e.date.isAfter(
-        DateTime.now().subtract(
-          Duration(days: 7),
-        ),
-      ),
-    )
+            DateTime.now().subtract(
+              Duration(days: 7),
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -75,36 +89,87 @@ class _TransactionScreenState extends State<TransactionScreen> {
     });
   }
 
+  List<Widget> _buildLandscape(
+    MediaQueryData mediaQuery,
+    AppBar appBar,
+    Widget txtListWidget,
+  ) {
+    return [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Show Chart',
+            style: Theme.of(context).textTheme.headline6,
+          ),
+          Switch.adaptive(
+              activeColor: Theme.of(context).accentColor,
+              value: _showChart,
+              onChanged: (val) {
+                setState(() {
+                  _showChart = val;
+                });
+              }),
+        ],
+      ),
+      _showChart
+          ? Container(
+              height: (mediaQuery.size.height -
+                      appBar.preferredSize.height -
+                      mediaQuery.padding.top) *
+                  0.6,
+              child: Chart(_recentTransactions))
+          : txtListWidget,
+    ];
+  }
+
+  List<Widget> _buildPortrait(
+    MediaQueryData mediaQuery,
+    AppBar appBar,
+    Widget txtListWidget,
+  ) {
+    return [
+      Container(
+        height: (mediaQuery.size.height -
+                appBar.preferredSize.height -
+                mediaQuery.padding.top) *
+            0.3,
+        child: Chart(_recentTransactions),
+      ),
+      txtListWidget,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final PreferredSizeWidget appBar = Platform.isIOS
         ? CupertinoNavigationBar(
-      middle: Text('Personal Expenses'),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GestureDetector(
-            onTap: () => _startAddNewTransaction(context),
-            child: Icon(CupertinoIcons.add),
-          ),
-        ],
-      ),
-    )
+            middle: Text('Personal Expenses'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () => _startAddNewTransaction(context),
+                  child: Icon(CupertinoIcons.add),
+                ),
+              ],
+            ),
+          )
         : AppBar(
-      title: Text('Personal Expenses'),
-      actions: [
-        IconButton(
-          icon: Icon(Icons.add),
-          onPressed: () => _startAddNewTransaction(context),
-        ),
-      ],
-    );
+            title: Text('Personal Expenses'),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.add),
+                onPressed: () => _startAddNewTransaction(context),
+              ),
+            ],
+          );
     final mediaQuery = MediaQuery.of(context);
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
     final txtListWidget = Container(
         height: (mediaQuery.size.height -
-            appBar.preferredSize.height -
-            mediaQuery.padding.top) *
+                appBar.preferredSize.height -
+                mediaQuery.padding.top) *
             0.7,
         child: TransactionList(_userTransactions, _delete));
     final pageBody = SafeArea(
@@ -112,58 +177,40 @@ class _TransactionScreenState extends State<TransactionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            //... use for nested List
+
             if (isLandscape)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Show Chart', style: Theme.of(context).textTheme.headline6,),
-                  Switch.adaptive(
-                      activeColor: Theme.of(context).accentColor,
-                      value: _showChart,
-                      onChanged: (val) {
-                        setState(() {
-                          _showChart = val;
-                        });
-                      }),
-                ],
+              ..._buildLandscape(
+                mediaQuery,
+                appBar,
+                txtListWidget,
               ),
             if (!isLandscape)
-              Container(
-                  height: (mediaQuery.size.height -
-                      appBar.preferredSize.height -
-                      mediaQuery.padding.top) *
-                      0.3,
-                  child: Chart(_recentTransactions)),
-            if (!isLandscape) txtListWidget,
-            if (isLandscape)
-              _showChart
-                  ? Container(
-                  height: (mediaQuery.size.height -
-                      appBar.preferredSize.height -
-                      mediaQuery.padding.top) *
-                      0.6,
-                  child: Chart(_recentTransactions))
-                  : txtListWidget,
+              ..._buildPortrait(
+                mediaQuery,
+                appBar,
+                txtListWidget,
+              ),
           ],
         ),
       ),
     );
     return Platform.isIOS
         ? CupertinoPageScaffold(
-      child: pageBody,
-      navigationBar: appBar,
-    )
+            child: pageBody,
+            navigationBar: appBar,
+          )
         : Scaffold(
-      appBar: appBar,
-      body: pageBody,
-      floatingActionButtonLocation:
-      FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Platform.isIOS
-          ? Container()
-          : FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () => _startAddNewTransaction(context),
-      ),
-    );
+            appBar: appBar,
+            body: pageBody,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerFloat,
+            floatingActionButton: Platform.isIOS
+                ? Container()
+                : FloatingActionButton(
+                    child: Icon(Icons.add),
+                    onPressed: () => _startAddNewTransaction(context),
+                  ),
+          );
   }
 }
